@@ -400,9 +400,9 @@
                     <label>Password</label>
                     <input type="password" id="loginPassword">
                 </div>
-                <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="login()">Sign In</button>
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="alert('Login clicked'); login()">Sign In</button>
                 <p style="text-align: center; color: #666;">
-                    Don't have an account? <a href="#" onclick="showSignup(); return false;" style="color: #6b2c2c;">Sign up</a>
+                    Don't have an account? <a href="#" onclick="alert('Signup link clicked'); showSignup(); return false;" style="color: #6b2c2c;">Sign up</a>
                 </p>
             </div>
 
@@ -1281,6 +1281,11 @@
                 showAuth();
             }
         });
+
+        // Debug: Confirm script loaded
+        console.log('Script loaded successfully');
+        console.log('showSignup function exists:', typeof showSignup);
+        console.log('login function exists:', typeof login);
     </script>
 </body>
 </html>
