@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>JavaScript Test</h1>
+    <button onclick="testClick()">Click Me</button>
+    <div id="output"></div>
+    
+    <script>
+        function testClick() {
+            document.getElementById('output').innerHTML = 'JavaScript is working!';
+        }
+        
+        // Test Supabase
+        console.log('Supabase:', window.supabase);
+        
+        if (window.supabase) {
+            document.getElementById('output').innerHTML = 'Supabase library loaded!';
+            
+            const { createClient } = window.supabase;
+            const supabase = createClient(
+                'https://hgabzawgwtureqsfebsq.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhnYWJ6YXdnd3R1cmVxc2ZlYnNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NTE2NjIsImV4cCI6MjA4NjAyNzY2Mn0.lbV0okGowwAQNWO0k9IY8QtjZsjvjDd47zDaTsu1uZY'
+            );
+            
+            console.log('Supabase client:', supabase);
+        } else {
+            document.getElementById('output').innerHTML = 'ERROR: Supabase library not loaded';
+        }
+    </script>
+</body>
+</html>
