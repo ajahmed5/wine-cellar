@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#6b2c2c">
     <title>Wine Cellar</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -586,11 +586,22 @@
     </div>
 
     <script>
+        // Check if Supabase loaded
+        if (!window.supabase) {
+            alert('Error: Unable to load Supabase library. Please check your internet connection and refresh.');
+        }
+
         // Initialize Supabase
         const SUPABASE_URL = 'https://hgabzawgwtureqsfebsq.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhnYWJ6YXdnd3R1cmVxc2ZlYnNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NTE2NjIsImV4cCI6MjA4NjAyNzY2Mn0.lbV0okGowwAQNWO0k9IY8QtjZsjvjDd47zDaTsu1uZY';
-        const { createClient } = window.supabase;
-        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        let supabase;
+        try {
+            const { createClient } = window.supabase;
+            supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        } catch (error) {
+            alert('Error initializing Supabase: ' + error.message);
+        }
 
         let currentUser = null;
         let wines = [];
