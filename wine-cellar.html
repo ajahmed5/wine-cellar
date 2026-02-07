@@ -8,9 +8,8 @@
     <meta name="theme-color" content="#6b2c2c">
     <title>Wine Cellar</title>
     <script>
-        // Define these IMMEDIATELY before anything else loads
+        // Define UI functions FIRST
         window.showSignup = function() {
-            alert('showSignup called!');
             document.getElementById('loginForm').style.display = 'none';
             document.getElementById('signupForm').style.display = 'block';
         };
@@ -18,9 +17,8 @@
             document.getElementById('signupForm').style.display = 'none';
             document.getElementById('loginForm').style.display = 'block';
         };
-        alert('Functions defined in head! showSignup=' + typeof window.showSignup);
     </script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2" async defer></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -395,11 +393,21 @@
         .pairing-list li:last-child {
             border-bottom: none;
         }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+        }
     </style>
 </head>
 <body>
+    <div id="loading" class="loading">
+        <h2>🍷 Loading Wine Cellar...</h2>
+    </div>
+
     <!-- AUTH SCREEN -->
-    <div id="auth" class="auth-container">
+    <div id="auth" class="auth-container" style="display: none;">
         <div class="card">
             <h1 style="color: #6b2c2c; margin-bottom: 20px;">🍷 Wine Cellar</h1>
             
@@ -413,9 +421,9 @@
                     <label>Password</label>
                     <input type="password" id="loginPassword">
                 </div>
-                <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="alert('Login clicked'); login()">Sign In</button>
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="login()">Sign In</button>
                 <p style="text-align: center; color: #666;">
-                    Don't have an account? <a href="#" onclick="alert('Link clicked'); alert('showSignup type: ' + typeof window.showSignup); window.showSignup(); return false;" style="color: #6b2c2c;">Sign up</a>
+                    Don't have an account? <a href="#" onclick="showSignup(); return false;" style="color: #6b2c2c;">Sign up</a>
                 </p>
             </div>
 
@@ -599,718 +607,708 @@
     </div>
 
     <script>
-        // Define UI functions FIRST before anything else
-        window.showSignup = function() {
-            alert('showSignup called!');
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('signupForm').style.display = 'block';
-        };
+        // Wait for Supabase to load
+        function initApp() {
+            if (!window.supabase) {
+                setTimeout(initApp, 100);
+                return;
+            }
 
-        window.showLogin = function() {
-            document.getElementById('signupForm').style.display = 'none';
-            document.getElementById('loginForm').style.display = 'block';
-        };
+            document.getElementById('loading').style.display = 'none';
 
-        // Check if Supabase loaded
-        if (!window.supabase) {
-            alert('Error: Unable to load Supabase library. Please check your internet connection and refresh.');
-        }
-
-        // Initialize Supabase
-        const SUPABASE_URL = 'https://hgabzawgwtureqsfebsq.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhnYWJ6YXdnd3R1cmVxc2ZlYnNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NTE2NjIsImV4cCI6MjA4NjAyNzY2Mn0.lbV0okGowwAQNWO0k9IY8QtjZsjvjDd47zDaTsu1uZY';
-        
-        let supabase;
-        try {
+            // Initialize Supabase
+            const SUPABASE_URL = 'https://hgabzawgwtureqsfebsq.supabase.co';
+            const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhnYWJ6YXdnd3R1cmVxc2ZlYnNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NTE2NjIsImV4cCI6MjA4NjAyNzY2Mn0.lbV0okGowwAQNWO0k9IY8QtjZsjvjDd47zDaTsu1uZY';
+            
             const { createClient } = window.supabase;
-            supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-        } catch (error) {
-            alert('Error initializing Supabase: ' + error.message);
-        }
+            window.supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let currentUser = null;
-        let wines = [];
-        let wineries = [];
-        let varieties = [];
-        let ratings = [];
-        let currentWineId = null;
-        let currentRatingWineId = null;
-        let selectedWineryId = null;
-        let selectedVarietyId = null;
+            let currentUser = null;
+            let wines = [];
+            let wineries = [];
+            let varieties = [];
+            let ratings = [];
+            let currentWineId = null;
+            let currentRatingWineId = null;
+            let selectedWineryId = null;
+            let selectedVarietyId = null;
 
-        // Auth functions
-        async function checkAuth() {
-            try {
-                const { data: { session }, error } = await supabase.auth.getSession();
-                if (error) {
-                    console.error('getSession error:', error);
+            // Auth functions
+            async function checkAuth() {
+                try {
+                    const { data: { session }, error } = await window.supabase.auth.getSession();
+                    if (error) {
+                        console.error('getSession error:', error);
+                        showAuth();
+                        return;
+                    }
+                    if (session) {
+                        currentUser = session.user;
+                        showApp();
+                    } else {
+                        showAuth();
+                    }
+                } catch (error) {
+                    console.error('checkAuth error:', error);
                     showAuth();
+                }
+            }
+
+            function showAuth() {
+                document.getElementById('auth').style.display = 'block';
+                document.getElementById('app').classList.remove('active');
+            }
+
+            function showApp() {
+                document.getElementById('auth').style.display = 'none';
+                document.getElementById('app').classList.add('active');
+                document.getElementById('userDisplay').textContent = `Signed in as ${currentUser.email}`;
+                loadData();
+            }
+
+            window.signup = async function() {
+                const name = document.getElementById('signupName').value.trim();
+                const email = document.getElementById('signupEmail').value.trim();
+                const password = document.getElementById('signupPassword').value;
+
+                if (!name || !email || !password) {
+                    alert('Please fill in all fields');
                     return;
                 }
-                if (session) {
-                    currentUser = session.user;
-                    showApp();
-                } else {
-                    showAuth();
-                }
-            } catch (error) {
-                alert('checkAuth error: ' + error.message);
-                showAuth();
-            }
-        }
 
-        function showAuth() {
-            document.getElementById('auth').style.display = 'block';
-            document.getElementById('app').classList.remove('active');
-        }
-
-        function showApp() {
-            document.getElementById('auth').style.display = 'none';
-            document.getElementById('app').classList.add('active');
-            document.getElementById('userDisplay').textContent = `Signed in as ${currentUser.email}`;
-            loadData();
-        }
-
-        async function signup() {
-            const name = document.getElementById('signupName').value.trim();
-            const email = document.getElementById('signupEmail').value.trim();
-            const password = document.getElementById('signupPassword').value;
-
-            if (!name || !email || !password) {
-                alert('Please fill in all fields');
-                return;
-            }
-
-            if (password.length < 6) {
-                alert('Password must be at least 6 characters');
-                return;
-            }
-
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: { display_name: name }
-                }
-            });
-
-            if (error) {
-                alert('Error: ' + error.message);
-            } else {
-                alert('Account created! Please check your email to confirm.');
-                showLogin();
-            }
-        }
-
-        async function login() {
-            const email = document.getElementById('loginEmail').value.trim();
-            const password = document.getElementById('loginPassword').value;
-
-            if (!email || !password) {
-                alert('Please enter email and password');
-                return;
-            }
-
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password
-            });
-
-            if (error) {
-                alert('Error: ' + error.message);
-            } else {
-                currentUser = data.user;
-                showApp();
-            }
-        }
-
-        async function logout() {
-            await supabase.auth.signOut();
-            currentUser = null;
-            showAuth();
-        }
-
-        // Data loading
-        async function loadData() {
-            await Promise.all([
-                loadWineries(),
-                loadVarieties(),
-                loadWines(),
-                loadRatings()
-            ]);
-        }
-
-        async function loadWineries() {
-            const { data, error } = await supabase
-                .from('wineries')
-                .select('*')
-                .order('name');
-            
-            if (!error) {
-                wineries = data || [];
-            }
-        }
-
-        async function loadVarieties() {
-            const { data, error } = await supabase
-                .from('varieties')
-                .select('*')
-                .order('name');
-            
-            if (!error) {
-                varieties = data || [];
-            }
-        }
-
-        async function loadWines() {
-            const { data, error } = await supabase
-                .from('wines')
-                .select(`
-                    *,
-                    winery:wineries(id, name, region),
-                    variety:varieties(id, name, type)
-                `)
-                .order('created', { ascending: false });
-            
-            if (!error) {
-                wines = data || [];
-                renderCellar();
-                updateWineSelect();
-            }
-        }
-
-        async function loadRatings() {
-            const { data, error } = await supabase
-                .from('ratings')
-                .select(`
-                    *,
-                    wine:wines(
-                        id,
-                        year,
-                        winery:wineries(name),
-                        variety:varieties(name)
-                    )
-                `)
-                .order('tasting_date', { ascending: false });
-            
-            if (!error) {
-                ratings = data || [];
-                renderRatings();
-            }
-        }
-
-        // Tab switching
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
-            event.target.classList.add('active');
-            document.getElementById(tabName).classList.add('active');
-        }
-
-        // Wine CRUD
-        function openAddWineModal() {
-            currentWineId = null;
-            selectedWineryId = null;
-            selectedVarietyId = null;
-            
-            document.getElementById('wineryInput').value = '';
-            document.getElementById('regionInput').value = '';
-            document.getElementById('varietyInput').value = '';
-            document.getElementById('typeInput').value = 'Red';
-            document.getElementById('yearInput').value = '';
-            document.getElementById('quantityInput').value = '1';
-            document.getElementById('notesInput').value = '';
-            
-            document.getElementById('wineModal').classList.add('active');
-        }
-
-        function closeWineModal() {
-            document.getElementById('wineModal').classList.remove('active');
-        }
-
-        // Autocomplete for winery
-        document.getElementById('wineryInput').addEventListener('input', function() {
-            const query = this.value.toLowerCase();
-            const list = document.getElementById('wineryList');
-            
-            if (query.length < 1) {
-                list.classList.remove('active');
-                return;
-            }
-
-            const matches = wineries.filter(w => w.name.toLowerCase().includes(query));
-            
-            if (matches.length === 0) {
-                list.innerHTML = `<div class="autocomplete-item" onclick="createNewWinery('${this.value}')">+ Create "${this.value}"</div>`;
-                list.classList.add('active');
-                selectedWineryId = null;
-            } else {
-                list.innerHTML = matches.map(w => 
-                    `<div class="autocomplete-item" onclick="selectWinery(${w.id}, '${w.name}', '${w.region || ''}')">${w.name}${w.region ? ' - ' + w.region : ''}</div>`
-                ).join('');
-                list.innerHTML += `<div class="autocomplete-item" onclick="createNewWinery('${this.value}')">+ Create "${this.value}"</div>`;
-                list.classList.add('active');
-            }
-        });
-
-        function selectWinery(id, name, region) {
-            selectedWineryId = id;
-            document.getElementById('wineryInput').value = name;
-            if (region) document.getElementById('regionInput').value = region;
-            document.getElementById('wineryList').classList.remove('active');
-        }
-
-        function createNewWinery(name) {
-            selectedWineryId = null;
-            document.getElementById('wineryInput').value = name;
-            document.getElementById('wineryList').classList.remove('active');
-        }
-
-        // Autocomplete for variety
-        document.getElementById('varietyInput').addEventListener('input', function() {
-            const query = this.value.toLowerCase();
-            const list = document.getElementById('varietyList');
-            
-            if (query.length < 1) {
-                list.classList.remove('active');
-                return;
-            }
-
-            const matches = varieties.filter(v => v.name.toLowerCase().includes(query));
-            
-            if (matches.length === 0) {
-                list.innerHTML = `<div class="autocomplete-item" onclick="createNewVariety('${this.value}')">+ Create "${this.value}"</div>`;
-                list.classList.add('active');
-                selectedVarietyId = null;
-            } else {
-                list.innerHTML = matches.map(v => 
-                    `<div class="autocomplete-item" onclick="selectVariety(${v.id}, '${v.name}', '${v.type}')">${v.name} (${v.type})</div>`
-                ).join('');
-                list.innerHTML += `<div class="autocomplete-item" onclick="createNewVariety('${this.value}')">+ Create "${this.value}"</div>`;
-                list.classList.add('active');
-            }
-        });
-
-        function selectVariety(id, name, type) {
-            selectedVarietyId = id;
-            document.getElementById('varietyInput').value = name;
-            document.getElementById('typeInput').value = type;
-            document.getElementById('varietyList').classList.remove('active');
-        }
-
-        function createNewVariety(name) {
-            selectedVarietyId = null;
-            document.getElementById('varietyInput').value = name;
-            document.getElementById('varietyList').classList.remove('active');
-        }
-
-        async function saveWine() {
-            const wineryName = document.getElementById('wineryInput').value.trim();
-            const varietyName = document.getElementById('varietyInput').value.trim();
-            const region = document.getElementById('regionInput').value.trim();
-            const type = document.getElementById('typeInput').value;
-            const year = document.getElementById('yearInput').value;
-            const quantity = parseInt(document.getElementById('quantityInput').value);
-            const notes = document.getElementById('notesInput').value.trim();
-
-            if (!wineryName || !varietyName) {
-                alert('Please enter winery and variety');
-                return;
-            }
-
-            // Create or get winery
-            let wineryId = selectedWineryId;
-            if (!wineryId) {
-                const { data, error } = await supabase
-                    .from('wineries')
-                    .insert({ name: wineryName, region: region || null, created_by: currentUser.id })
-                    .select()
-                    .single();
-                
-                if (error) {
-                    alert('Error creating winery: ' + error.message);
+                if (password.length < 6) {
+                    alert('Password must be at least 6 characters');
                     return;
                 }
-                wineryId = data.id;
-                await loadWineries();
-            }
 
-            // Create or get variety
-            let varietyId = selectedVarietyId;
-            if (!varietyId) {
-                const { data, error } = await supabase
-                    .from('varieties')
-                    .insert({ name: varietyName, type, created_by: currentUser.id })
-                    .select()
-                    .single();
-                
-                if (error) {
-                    alert('Error creating variety: ' + error.message);
-                    return;
-                }
-                varietyId = data.id;
-                await loadVarieties();
-            }
-
-            // Create wine
-            const { error } = await supabase
-                .from('wines')
-                .insert({
-                    winery_id: wineryId,
-                    variety_id: varietyId,
-                    year: year || null,
-                    quantity,
-                    notes: notes || null,
-                    created_by: currentUser.id
+                const { data, error } = await window.supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: { display_name: name }
+                    }
                 });
 
-            if (error) {
-                alert('Error saving wine: ' + error.message);
-            } else {
-                await loadWines();
-                closeWineModal();
+                if (error) {
+                    alert('Error: ' + error.message);
+                } else {
+                    alert('Account created! Please check your email to confirm.');
+                    showLogin();
+                }
+            };
+
+            window.login = async function() {
+                const email = document.getElementById('loginEmail').value.trim();
+                const password = document.getElementById('loginPassword').value;
+
+                if (!email || !password) {
+                    alert('Please enter email and password');
+                    return;
+                }
+
+                const { data, error } = await window.supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+
+                if (error) {
+                    alert('Error: ' + error.message);
+                } else {
+                    currentUser = data.user;
+                    showApp();
+                }
+            };
+
+            window.logout = async function() {
+                await window.supabase.auth.signOut();
+                currentUser = null;
+                showAuth();
+            };
+
+            // Data loading
+            async function loadData() {
+                await Promise.all([
+                    loadWineries(),
+                    loadVarieties(),
+                    loadWines(),
+                    loadRatings()
+                ]);
             }
-        }
 
-        async function drinkWine(id) {
-            const wine = wines.find(w => w.id === id);
-            if (!wine || wine.quantity <= 0) return;
-
-            const { error } = await supabase
-                .from('wines')
-                .update({ quantity: wine.quantity - 1 })
-                .eq('id', id);
-
-            if (!error) {
-                await loadWines();
-                openRateModal(id);
-            }
-        }
-
-        async function deleteWine(id) {
-            if (!confirm('Remove this wine from the cellar?')) return;
-
-            const { error } = await supabase
-                .from('wines')
-                .delete()
-                .eq('id', id);
-
-            if (error) {
-                alert('Error: ' + error.message);
-            } else {
-                await loadWines();
-            }
-        }
-
-        function renderCellar() {
-            const list = document.getElementById('cellarList');
-            
-            if (wines.length === 0) {
-                list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🍷</div><p>The cellar is empty.<br>Add your first wine!</p></div>';
-                return;
+            async function loadWineries() {
+                const { data, error } = await window.supabase
+                    .from('wineries')
+                    .select('*')
+                    .order('name');
+                
+                if (!error) {
+                    wineries = data || [];
+                }
             }
 
-            const activeWines = wines.filter(w => w.quantity > 0);
-            const emptyWines = wines.filter(w => w.quantity === 0);
+            async function loadVarieties() {
+                const { data, error } = await window.supabase
+                    .from('varieties')
+                    .select('*')
+                    .order('name');
+                
+                if (!error) {
+                    varieties = data || [];
+                }
+            }
 
-            let html = '';
+            async function loadWines() {
+                const { data, error } = await window.supabase
+                    .from('wines')
+                    .select(`
+                        *,
+                        winery:wineries(id, name, region),
+                        variety:varieties(id, name, type)
+                    `)
+                    .order('created', { ascending: false });
+                
+                if (!error) {
+                    wines = data || [];
+                    renderCellar();
+                    updateWineSelect();
+                }
+            }
 
-            if (activeWines.length > 0) {
-                activeWines.forEach(wine => {
-                    const winery = wine.winery?.name || 'Unknown Winery';
-                    const variety = wine.variety?.name || 'Unknown Variety';
-                    const type = wine.variety?.type || '';
+            async function loadRatings() {
+                const { data, error } = await window.supabase
+                    .from('ratings')
+                    .select(`
+                        *,
+                        wine:wines(
+                            id,
+                            year,
+                            winery:wineries(name),
+                            variety:varieties(name)
+                        )
+                    `)
+                    .order('tasting_date', { ascending: false });
+                
+                if (!error) {
+                    ratings = data || [];
+                    renderRatings();
+                }
+            }
+
+            // Tab switching
+            window.switchTab = function(tabName) {
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                
+                event.target.classList.add('active');
+                document.getElementById(tabName).classList.add('active');
+            };
+
+            // Wine CRUD
+            window.openAddWineModal = function() {
+                currentWineId = null;
+                selectedWineryId = null;
+                selectedVarietyId = null;
+                
+                document.getElementById('wineryInput').value = '';
+                document.getElementById('regionInput').value = '';
+                document.getElementById('varietyInput').value = '';
+                document.getElementById('typeInput').value = 'Red';
+                document.getElementById('yearInput').value = '';
+                document.getElementById('quantityInput').value = '1';
+                document.getElementById('notesInput').value = '';
+                
+                document.getElementById('wineModal').classList.add('active');
+            };
+
+            window.closeWineModal = function() {
+                document.getElementById('wineModal').classList.remove('active');
+            };
+
+            // Autocomplete for winery
+            document.getElementById('wineryInput').addEventListener('input', function() {
+                const query = this.value.toLowerCase();
+                const list = document.getElementById('wineryList');
+                
+                if (query.length < 1) {
+                    list.classList.remove('active');
+                    return;
+                }
+
+                const matches = wineries.filter(w => w.name.toLowerCase().includes(query));
+                
+                if (matches.length === 0) {
+                    list.innerHTML = `<div class="autocomplete-item" onclick="createNewWinery('${this.value}')">+ Create "${this.value}"</div>`;
+                    list.classList.add('active');
+                    selectedWineryId = null;
+                } else {
+                    list.innerHTML = matches.map(w => 
+                        `<div class="autocomplete-item" onclick="selectWinery(${w.id}, '${w.name}', '${w.region || ''}')">${w.name}${w.region ? ' - ' + w.region : ''}</div>`
+                    ).join('');
+                    list.innerHTML += `<div class="autocomplete-item" onclick="createNewWinery('${this.value}')">+ Create "${this.value}"</div>`;
+                    list.classList.add('active');
+                }
+            });
+
+            window.selectWinery = function(id, name, region) {
+                selectedWineryId = id;
+                document.getElementById('wineryInput').value = name;
+                if (region) document.getElementById('regionInput').value = region;
+                document.getElementById('wineryList').classList.remove('active');
+            };
+
+            window.createNewWinery = function(name) {
+                selectedWineryId = null;
+                document.getElementById('wineryInput').value = name;
+                document.getElementById('wineryList').classList.remove('active');
+            };
+
+            // Autocomplete for variety
+            document.getElementById('varietyInput').addEventListener('input', function() {
+                const query = this.value.toLowerCase();
+                const list = document.getElementById('varietyList');
+                
+                if (query.length < 1) {
+                    list.classList.remove('active');
+                    return;
+                }
+
+                const matches = varieties.filter(v => v.name.toLowerCase().includes(query));
+                
+                if (matches.length === 0) {
+                    list.innerHTML = `<div class="autocomplete-item" onclick="createNewVariety('${this.value}')">+ Create "${this.value}"</div>`;
+                    list.classList.add('active');
+                    selectedVarietyId = null;
+                } else {
+                    list.innerHTML = matches.map(v => 
+                        `<div class="autocomplete-item" onclick="selectVariety(${v.id}, '${v.name}', '${v.type}')">${v.name} (${v.type})</div>`
+                    ).join('');
+                    list.innerHTML += `<div class="autocomplete-item" onclick="createNewVariety('${this.value}')">+ Create "${this.value}"</div>`;
+                    list.classList.add('active');
+                }
+            });
+
+            window.selectVariety = function(id, name, type) {
+                selectedVarietyId = id;
+                document.getElementById('varietyInput').value = name;
+                document.getElementById('typeInput').value = type;
+                document.getElementById('varietyList').classList.remove('active');
+            };
+
+            window.createNewVariety = function(name) {
+                selectedVarietyId = null;
+                document.getElementById('varietyInput').value = name;
+                document.getElementById('varietyList').classList.remove('active');
+            };
+
+            window.saveWine = async function() {
+                const wineryName = document.getElementById('wineryInput').value.trim();
+                const varietyName = document.getElementById('varietyInput').value.trim();
+                const region = document.getElementById('regionInput').value.trim();
+                const type = document.getElementById('typeInput').value;
+                const year = document.getElementById('yearInput').value;
+                const quantity = parseInt(document.getElementById('quantityInput').value);
+                const notes = document.getElementById('notesInput').value.trim();
+
+                if (!wineryName || !varietyName) {
+                    alert('Please enter winery and variety');
+                    return;
+                }
+
+                // Create or get winery
+                let wineryId = selectedWineryId;
+                if (!wineryId) {
+                    const { data, error } = await window.supabase
+                        .from('wineries')
+                        .insert({ name: wineryName, region: region || null, created_by: currentUser.id })
+                        .select()
+                        .single();
+                    
+                    if (error) {
+                        alert('Error creating winery: ' + error.message);
+                        return;
+                    }
+                    wineryId = data.id;
+                    await loadWineries();
+                }
+
+                // Create or get variety
+                let varietyId = selectedVarietyId;
+                if (!varietyId) {
+                    const { data, error } = await window.supabase
+                        .from('varieties')
+                        .insert({ name: varietyName, type, created_by: currentUser.id })
+                        .select()
+                        .single();
+                    
+                    if (error) {
+                        alert('Error creating variety: ' + error.message);
+                        return;
+                    }
+                    varietyId = data.id;
+                    await loadVarieties();
+                }
+
+                // Create wine
+                const { error } = await window.supabase
+                    .from('wines')
+                    .insert({
+                        winery_id: wineryId,
+                        variety_id: varietyId,
+                        year: year || null,
+                        quantity,
+                        notes: notes || null,
+                        created_by: currentUser.id
+                    });
+
+                if (error) {
+                    alert('Error saving wine: ' + error.message);
+                } else {
+                    await loadWines();
+                    closeWineModal();
+                }
+            };
+
+            window.drinkWine = async function(id) {
+                const wine = wines.find(w => w.id === id);
+                if (!wine || wine.quantity <= 0) return;
+
+                const { error } = await window.supabase
+                    .from('wines')
+                    .update({ quantity: wine.quantity - 1 })
+                    .eq('id', id);
+
+                if (!error) {
+                    await loadWines();
+                    openRateModal(id);
+                }
+            };
+
+            window.deleteWine = async function(id) {
+                if (!confirm('Remove this wine from the cellar?')) return;
+
+                const { error } = await window.supabase
+                    .from('wines')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    alert('Error: ' + error.message);
+                } else {
+                    await loadWines();
+                }
+            };
+
+            function renderCellar() {
+                const list = document.getElementById('cellarList');
+                
+                if (wines.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🍷</div><p>The cellar is empty.<br>Add your first wine!</p></div>';
+                    return;
+                }
+
+                const activeWines = wines.filter(w => w.quantity > 0);
+                const emptyWines = wines.filter(w => w.quantity === 0);
+
+                let html = '';
+
+                if (activeWines.length > 0) {
+                    activeWines.forEach(wine => {
+                        const winery = wine.winery?.name || 'Unknown Winery';
+                        const variety = wine.variety?.name || 'Unknown Variety';
+                        const type = wine.variety?.type || '';
+                        
+                        html += `
+                            <div class="wine-item">
+                                <div class="wine-header">
+                                    <div>
+                                        <div class="wine-name">${winery}</div>
+                                        <div class="wine-details">
+                                            ${type} - ${variety}${wine.year ? ' (' + wine.year + ')' : ''}
+                                        </div>
+                                        ${wine.winery?.region ? `<div class="wine-details">📍 ${wine.winery.region}</div>` : ''}
+                                    </div>
+                                    <span class="quantity-badge">${wine.quantity} ${wine.quantity === 1 ? 'bottle' : 'bottles'}</span>
+                                </div>
+                                ${wine.notes ? `<div class="wine-details" style="margin-top: 8px;">${wine.notes}</div>` : ''}
+                                <div class="wine-actions">
+                                    <button class="btn btn-primary btn-small" onclick="drinkWine(${wine.id})">🍷 Drink & Rate</button>
+                                    <button class="btn btn-secondary btn-small" onclick="viewWineRatings(${wine.id})">View Ratings</button>
+                                    ${wine.created_by === currentUser.id ? `<button class="btn btn-secondary btn-small" onclick="deleteWine(${wine.id})">Remove</button>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                if (emptyWines.length > 0) {
+                    html += '<div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;"><h3 style="color: #999; font-size: 0.9em; margin-bottom: 10px;">EMPTY BOTTLES</h3>';
+                    emptyWines.forEach(wine => {
+                        const winery = wine.winery?.name || 'Unknown';
+                        const variety = wine.variety?.name || 'Unknown';
+                        
+                        html += `
+                            <div class="wine-item" style="opacity: 0.6;">
+                                <div class="wine-header">
+                                    <div>
+                                        <div class="wine-name">${winery}</div>
+                                        <div class="wine-details">${variety}${wine.year ? ' (' + wine.year + ')' : ''}</div>
+                                    </div>
+                                    <span class="quantity-badge" style="background: #999;">Empty</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
+
+                list.innerHTML = html;
+            }
+
+            // Ratings
+            window.updateRatingValue = function() {
+                document.getElementById('ratingValue').textContent = document.getElementById('ratingSlider').value;
+            };
+
+            async function openRateModal(wineId) {
+                currentRatingWineId = wineId;
+                const wine = wines.find(w => w.id === wineId);
+                
+                if (!wine) return;
+
+                const winery = wine.winery?.name || 'Unknown';
+                const variety = wine.variety?.name || 'Unknown';
+                
+                document.getElementById('rateWineName').textContent = `${winery} - ${variety}${wine.year ? ' (' + wine.year + ')' : ''}`;
+                document.getElementById('ratingSlider').value = 50;
+                document.getElementById('ratingValue').textContent = '50';
+                document.getElementById('ratingNotes').value = '';
+                document.getElementById('ratingDate').value = new Date().toISOString().split('T')[0];
+
+                // Load existing ratings for this wine
+                const wineRatings = ratings.filter(r => r.wine_id === wineId);
+                
+                if (wineRatings.length > 0) {
+                    let ratingsHtml = '';
+                    for (const rating of wineRatings) {
+                        const userName = rating.user_name || 'Unknown user';
+                        
+                        ratingsHtml += `
+                            <div class="rating-entry">
+                                <span class="rating-user">${userName}:</span>
+                                <span class="rating-score">${rating.rating}/100</span>
+                                ${rating.tasting_notes ? `<div style="color: #666; font-size: 0.9em; margin-top: 3px;">${rating.tasting_notes}</div>` : ''}
+                            </div>
+                        `;
+                    }
+                    
+                    document.getElementById('existingRatingsList').innerHTML = ratingsHtml;
+                    document.getElementById('existingRatings').style.display = 'block';
+                } else {
+                    document.getElementById('existingRatings').style.display = 'none';
+                }
+
+                document.getElementById('rateModal').classList.add('active');
+            }
+
+            window.closeRateModal = function() {
+                document.getElementById('rateModal').classList.remove('active');
+            };
+
+            window.saveRating = async function() {
+                const rating = parseInt(document.getElementById('ratingSlider').value);
+                const notes = document.getElementById('ratingNotes').value.trim();
+                const date = document.getElementById('ratingDate').value;
+
+                // Get user's display name from metadata or use email
+                const displayName = currentUser.user_metadata?.display_name || currentUser.email.split('@')[0];
+
+                const { error } = await window.supabase
+                    .from('ratings')
+                    .insert({
+                        wine_id: currentRatingWineId,
+                        rating,
+                        tasting_notes: notes || null,
+                        tasting_date: date,
+                        created_by: currentUser.id,
+                        user_name: displayName
+                    });
+
+                if (error) {
+                    alert('Error saving rating: ' + error.message);
+                } else {
+                    await loadRatings();
+                    closeRateModal();
+                }
+            };
+
+            window.viewWineRatings = function(wineId) {
+                openRateModal(wineId);
+            };
+
+            function renderRatings() {
+                const list = document.getElementById('ratingsList');
+                
+                if (ratings.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⭐</div><p>No ratings yet.<br>Drink and rate wines!</p></div>';
+                    return;
+                }
+
+                let html = '';
+                
+                for (const rating of ratings) {
+                    const wine = rating.wine;
+                    const winery = wine?.winery?.name || 'Unknown';
+                    const variety = wine?.variety?.name || 'Unknown';
+                    
+                    // Display the user_name from the rating
+                    const userName = rating.user_name || 'Unknown user';
                     
                     html += `
                         <div class="wine-item">
-                            <div class="wine-header">
-                                <div>
-                                    <div class="wine-name">${winery}</div>
-                                    <div class="wine-details">
-                                        ${type} - ${variety}${wine.year ? ' (' + wine.year + ')' : ''}
-                                    </div>
-                                    ${wine.winery?.region ? `<div class="wine-details">📍 ${wine.winery.region}</div>` : ''}
-                                </div>
-                                <span class="quantity-badge">${wine.quantity} ${wine.quantity === 1 ? 'bottle' : 'bottles'}</span>
+                            <div class="wine-name">${winery} - ${variety}</div>
+                            ${wine?.year ? `<div class="wine-details">${wine.year}</div>` : ''}
+                            <div style="margin: 8px 0;">
+                                <span class="rating-score" style="font-size: 1.3em;">${rating.rating}/100</span>
+                                <span style="color: #666; margin-left: 10px;">by ${userName}</span>
                             </div>
-                            ${wine.notes ? `<div class="wine-details" style="margin-top: 8px;">${wine.notes}</div>` : ''}
-                            <div class="wine-actions">
-                                <button class="btn btn-primary btn-small" onclick="drinkWine(${wine.id})">🍷 Drink & Rate</button>
-                                <button class="btn btn-secondary btn-small" onclick="viewWineRatings(${wine.id})">View Ratings</button>
-                                ${wine.created_by === currentUser.id ? `<button class="btn btn-secondary btn-small" onclick="deleteWine(${wine.id})">Remove</button>` : ''}
-                            </div>
+                            ${rating.tasting_notes ? `<div class="wine-details">${rating.tasting_notes}</div>` : ''}
+                            <div class="wine-details" style="margin-top: 5px;">📅 ${new Date(rating.tasting_date).toLocaleDateString()}</div>
                         </div>
                     `;
+                }
+
+                list.innerHTML = html;
+            }
+
+            // Pairings
+            function updateWineSelect() {
+                const select = document.getElementById('wineSelect');
+                const activeWines = wines.filter(w => w.quantity > 0);
+                
+                select.innerHTML = '<option value="">Select a wine...</option>';
+                activeWines.forEach(wine => {
+                    const winery = wine.winery?.name || 'Unknown';
+                    const variety = wine.variety?.name || 'Unknown';
+                    const type = wine.variety?.type || '';
+                    select.innerHTML += `<option value="${type}">${winery} - ${variety} (${type})</option>`;
                 });
             }
 
-            if (emptyWines.length > 0) {
-                html += '<div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;"><h3 style="color: #999; font-size: 0.9em; margin-bottom: 10px;">EMPTY BOTTLES</h3>';
-                emptyWines.forEach(wine => {
-                    const winery = wine.winery?.name || 'Unknown';
-                    const variety = wine.variety?.name || 'Unknown';
-                    
+            const pairingDatabase = {
+                'Red': {
+                    foods: ['Red meat', 'Lamb', 'Beef stew', 'Hard cheeses', 'Mushroom dishes', 'Grilled steak', 'BBQ ribs', 'Venison', 'Duck'],
+                    wines: ['Cabernet Sauvignon', 'Merlot', 'Pinot Noir', 'Syrah/Shiraz', 'Malbec']
+                },
+                'White': {
+                    foods: ['Fish', 'Chicken', 'Pork', 'Pasta with cream sauce', 'Soft cheeses', 'Shellfish', 'Salads', 'Light seafood'],
+                    wines: ['Chardonnay', 'Sauvignon Blanc', 'Pinot Grigio', 'Riesling']
+                },
+                'Rosé': {
+                    foods: ['Grilled vegetables', 'Light pasta', 'Salads', 'Salmon', 'Mediterranean dishes', 'Tapas', 'Sushi'],
+                    wines: ['Provence Rosé', 'White Zinfandel']
+                },
+                'Sparkling': {
+                    foods: ['Oysters', 'Caviar', 'Fried foods', 'Salty snacks', 'Brunch dishes', 'Soft cheeses', 'Appetizers'],
+                    wines: ['Champagne', 'Prosecco', 'Cava']
+                },
+                'Dessert': {
+                    foods: ['Chocolate desserts', 'Fruit tarts', 'Cheesecake', 'Crème brûlée', 'Blue cheese', 'Foie gras'],
+                    wines: ['Port', 'Sauternes', 'Ice wine', 'Late harvest Riesling']
+                }
+            };
+
+            window.suggestFoodPairings = function() {
+                const wineType = document.getElementById('wineSelect').value;
+                const resultDiv = document.getElementById('winePairingResult');
+                
+                if (!wineType) {
+                    resultDiv.innerHTML = '';
+                    return;
+                }
+
+                const pairings = pairingDatabase[wineType];
+
+                resultDiv.innerHTML = `
+                    <div class="pairing-result">
+                        <h3>Great pairings for this wine:</h3>
+                        <ul class="pairing-list">
+                            ${pairings.foods.map(food => `<li>🍽️ ${food}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            };
+
+            window.suggestWinePairings = function() {
+                const food = document.getElementById('foodInput').value.trim().toLowerCase();
+                const resultDiv = document.getElementById('foodPairingResult');
+                
+                if (!food) {
+                    alert('Please enter a food item');
+                    return;
+                }
+
+                let suggestions = [];
+                
+                for (const [wineType, data] of Object.entries(pairingDatabase)) {
+                    if (data.foods.some(f => f.toLowerCase().includes(food) || food.includes(f.toLowerCase()))) {
+                        suggestions.push({
+                            type: wineType,
+                            wines: data.wines
+                        });
+                    }
+                }
+
+                if (suggestions.length === 0) {
+                    if (food.includes('meat') || food.includes('beef') || food.includes('steak')) {
+                        suggestions.push({ type: 'Red', wines: pairingDatabase['Red'].wines });
+                    } else if (food.includes('fish') || food.includes('chicken') || food.includes('seafood')) {
+                        suggestions.push({ type: 'White', wines: pairingDatabase['White'].wines });
+                    } else if (food.includes('dessert') || food.includes('chocolate') || food.includes('sweet')) {
+                        suggestions.push({ type: 'Dessert', wines: pairingDatabase['Dessert'].wines });
+                    } else {
+                        suggestions.push(
+                            { type: 'White', wines: pairingDatabase['White'].wines },
+                            { type: 'Rosé', wines: pairingDatabase['Rosé'].wines }
+                        );
+                    }
+                }
+
+                let html = '<div class="pairing-result"><h3>Recommended wines:</h3>';
+                suggestions.forEach(suggestion => {
                     html += `
-                        <div class="wine-item" style="opacity: 0.6;">
-                            <div class="wine-header">
-                                <div>
-                                    <div class="wine-name">${winery}</div>
-                                    <div class="wine-details">${variety}${wine.year ? ' (' + wine.year + ')' : ''}</div>
-                                </div>
-                                <span class="quantity-badge" style="background: #999;">Empty</span>
-                            </div>
+                        <div style="margin-top: 15px;">
+                            <strong>${suggestion.type} wines:</strong>
+                            <ul class="pairing-list">
+                                ${suggestion.wines.map(wine => `<li>🍷 ${wine}</li>`).join('')}
+                            </ul>
                         </div>
                     `;
                 });
                 html += '</div>';
-            }
 
-            list.innerHTML = html;
-        }
+                resultDiv.innerHTML = html;
+            };
 
-        // Ratings
-        function updateRatingValue() {
-            document.getElementById('ratingValue').textContent = document.getElementById('ratingSlider').value;
-        }
-
-        async function openRateModal(wineId) {
-            currentRatingWineId = wineId;
-            const wine = wines.find(w => w.id === wineId);
+            // Initialize
+            checkAuth();
             
-            if (!wine) return;
-
-            const winery = wine.winery?.name || 'Unknown';
-            const variety = wine.variety?.name || 'Unknown';
-            
-            document.getElementById('rateWineName').textContent = `${winery} - ${variety}${wine.year ? ' (' + wine.year + ')' : ''}`;
-            document.getElementById('ratingSlider').value = 50;
-            document.getElementById('ratingValue').textContent = '50';
-            document.getElementById('ratingNotes').value = '';
-            document.getElementById('ratingDate').value = new Date().toISOString().split('T')[0];
-
-            // Load existing ratings for this wine
-            const wineRatings = ratings.filter(r => r.wine_id === wineId);
-            
-            if (wineRatings.length > 0) {
-                let ratingsHtml = '';
-                for (const rating of wineRatings) {
-                    const userName = rating.user_name || 'Unknown user';
-                    
-                    ratingsHtml += `
-                        <div class="rating-entry">
-                            <span class="rating-user">${userName}:</span>
-                            <span class="rating-score">${rating.rating}/100</span>
-                            ${rating.tasting_notes ? `<div style="color: #666; font-size: 0.9em; margin-top: 3px;">${rating.tasting_notes}</div>` : ''}
-                        </div>
-                    `;
+            window.supabase.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_IN') {
+                    currentUser = session.user;
+                    showApp();
+                } else if (event === 'SIGNED_OUT') {
+                    currentUser = null;
+                    showAuth();
                 }
-                
-                document.getElementById('existingRatingsList').innerHTML = ratingsHtml;
-                document.getElementById('existingRatings').style.display = 'block';
-            } else {
-                document.getElementById('existingRatings').style.display = 'none';
-            }
-
-            document.getElementById('rateModal').classList.add('active');
-        }
-
-        function closeRateModal() {
-            document.getElementById('rateModal').classList.remove('active');
-        }
-
-        async function saveRating() {
-            const rating = parseInt(document.getElementById('ratingSlider').value);
-            const notes = document.getElementById('ratingNotes').value.trim();
-            const date = document.getElementById('ratingDate').value;
-
-            // Get user's display name from metadata or use email
-            const displayName = currentUser.user_metadata?.display_name || currentUser.email.split('@')[0];
-
-            const { error } = await supabase
-                .from('ratings')
-                .insert({
-                    wine_id: currentRatingWineId,
-                    rating,
-                    tasting_notes: notes || null,
-                    tasting_date: date,
-                    created_by: currentUser.id,
-                    user_name: displayName
-                });
-
-            if (error) {
-                alert('Error saving rating: ' + error.message);
-            } else {
-                await loadRatings();
-                closeRateModal();
-            }
-        }
-
-        async function viewWineRatings(wineId) {
-            openRateModal(wineId);
-        }
-
-        async function renderRatings() {
-            const list = document.getElementById('ratingsList');
-            
-            if (ratings.length === 0) {
-                list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⭐</div><p>No ratings yet.<br>Drink and rate wines!</p></div>';
-                return;
-            }
-
-            let html = '';
-            
-            for (const rating of ratings) {
-                const wine = rating.wine;
-                const winery = wine?.winery?.name || 'Unknown';
-                const variety = wine?.variety?.name || 'Unknown';
-                
-                // Display the user_name from the rating
-                const userName = rating.user_name || 'Unknown user';
-                
-                html += `
-                    <div class="wine-item">
-                        <div class="wine-name">${winery} - ${variety}</div>
-                        ${wine?.year ? `<div class="wine-details">${wine.year}</div>` : ''}
-                        <div style="margin: 8px 0;">
-                            <span class="rating-score" style="font-size: 1.3em;">${rating.rating}/100</span>
-                            <span style="color: #666; margin-left: 10px;">by ${userName}</span>
-                        </div>
-                        ${rating.tasting_notes ? `<div class="wine-details">${rating.tasting_notes}</div>` : ''}
-                        <div class="wine-details" style="margin-top: 5px;">📅 ${new Date(rating.tasting_date).toLocaleDateString()}</div>
-                    </div>
-                `;
-            }
-
-            list.innerHTML = html;
-        }
-
-        // Pairings
-        function updateWineSelect() {
-            const select = document.getElementById('wineSelect');
-            const activeWines = wines.filter(w => w.quantity > 0);
-            
-            select.innerHTML = '<option value="">Select a wine...</option>';
-            activeWines.forEach(wine => {
-                const winery = wine.winery?.name || 'Unknown';
-                const variety = wine.variety?.name || 'Unknown';
-                const type = wine.variety?.type || '';
-                select.innerHTML += `<option value="${type}">${winery} - ${variety} (${type})</option>`;
             });
         }
 
-        const pairingDatabase = {
-            'Red': {
-                foods: ['Red meat', 'Lamb', 'Beef stew', 'Hard cheeses', 'Mushroom dishes', 'Grilled steak', 'BBQ ribs', 'Venison', 'Duck'],
-                wines: ['Cabernet Sauvignon', 'Merlot', 'Pinot Noir', 'Syrah/Shiraz', 'Malbec']
-            },
-            'White': {
-                foods: ['Fish', 'Chicken', 'Pork', 'Pasta with cream sauce', 'Soft cheeses', 'Shellfish', 'Salads', 'Light seafood'],
-                wines: ['Chardonnay', 'Sauvignon Blanc', 'Pinot Grigio', 'Riesling']
-            },
-            'Rosé': {
-                foods: ['Grilled vegetables', 'Light pasta', 'Salads', 'Salmon', 'Mediterranean dishes', 'Tapas', 'Sushi'],
-                wines: ['Provence Rosé', 'White Zinfandel']
-            },
-            'Sparkling': {
-                foods: ['Oysters', 'Caviar', 'Fried foods', 'Salty snacks', 'Brunch dishes', 'Soft cheeses', 'Appetizers'],
-                wines: ['Champagne', 'Prosecco', 'Cava']
-            },
-            'Dessert': {
-                foods: ['Chocolate desserts', 'Fruit tarts', 'Cheesecake', 'Crème brûlée', 'Blue cheese', 'Foie gras'],
-                wines: ['Port', 'Sauternes', 'Ice wine', 'Late harvest Riesling']
-            }
-        };
-
-        function suggestFoodPairings() {
-            const wineType = document.getElementById('wineSelect').value;
-            const resultDiv = document.getElementById('winePairingResult');
-            
-            if (!wineType) {
-                resultDiv.innerHTML = '';
-                return;
-            }
-
-            const pairings = pairingDatabase[wineType];
-
-            resultDiv.innerHTML = `
-                <div class="pairing-result">
-                    <h3>Great pairings for this wine:</h3>
-                    <ul class="pairing-list">
-                        ${pairings.foods.map(food => `<li>🍽️ ${food}</li>`).join('')}
-                    </ul>
-                </div>
-            `;
+        // Start the app when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
         }
-
-        function suggestWinePairings() {
-            const food = document.getElementById('foodInput').value.trim().toLowerCase();
-            const resultDiv = document.getElementById('foodPairingResult');
-            
-            if (!food) {
-                alert('Please enter a food item');
-                return;
-            }
-
-            let suggestions = [];
-            
-            for (const [wineType, data] of Object.entries(pairingDatabase)) {
-                if (data.foods.some(f => f.toLowerCase().includes(food) || food.includes(f.toLowerCase()))) {
-                    suggestions.push({
-                        type: wineType,
-                        wines: data.wines
-                    });
-                }
-            }
-
-            if (suggestions.length === 0) {
-                if (food.includes('meat') || food.includes('beef') || food.includes('steak')) {
-                    suggestions.push({ type: 'Red', wines: pairingDatabase['Red'].wines });
-                } else if (food.includes('fish') || food.includes('chicken') || food.includes('seafood')) {
-                    suggestions.push({ type: 'White', wines: pairingDatabase['White'].wines });
-                } else if (food.includes('dessert') || food.includes('chocolate') || food.includes('sweet')) {
-                    suggestions.push({ type: 'Dessert', wines: pairingDatabase['Dessert'].wines });
-                } else {
-                    suggestions.push(
-                        { type: 'White', wines: pairingDatabase['White'].wines },
-                        { type: 'Rosé', wines: pairingDatabase['Rosé'].wines }
-                    );
-                }
-            }
-
-            let html = '<div class="pairing-result"><h3>Recommended wines:</h3>';
-            suggestions.forEach(suggestion => {
-                html += `
-                    <div style="margin-top: 15px;">
-                        <strong>${suggestion.type} wines:</strong>
-                        <ul class="pairing-list">
-                            ${suggestion.wines.map(wine => `<li>🍷 ${wine}</li>`).join('')}
-                        </ul>
-                    </div>
-                `;
-            });
-            html += '</div>';
-
-            resultDiv.innerHTML = html;
-        }
-
-        // Initialize
-        checkAuth();
-        
-        supabase.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN') {
-                currentUser = session.user;
-                showApp();
-            } else if (event === 'SIGNED_OUT') {
-                currentUser = null;
-                showAuth();
-            }
-        });
-
-        // Debug: Confirm script loaded
-        console.log('Script loaded successfully');
-        console.log('showSignup function exists:', typeof showSignup);
-        console.log('login function exists:', typeof login);
     </script>
 </body>
 </html>
