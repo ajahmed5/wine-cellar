@@ -1,3 +1,5 @@
+Copy
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#6b2c2c">
     <title>Wine Cellar</title>
-    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -39,6 +41,11 @@
             opacity: 0.8;
             margin-bottom: 30px;
             font-size: 0.9em;
+        }
+
+        .auth-container {
+            max-width: 400px;
+            margin: 100px auto;
         }
 
         .tabs {
@@ -119,6 +126,7 @@
             display: flex;
             gap: 10px;
             margin-top: 10px;
+            flex-wrap: wrap;
         }
 
         .btn {
@@ -181,20 +189,80 @@
             min-height: 80px;
         }
 
-        .rating {
-            display: flex;
-            gap: 5px;
-            font-size: 1.5em;
+        .autocomplete-container {
+            position: relative;
         }
 
-        .star {
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .autocomplete-list.active {
+            display: block;
+        }
+
+        .autocomplete-item {
+            padding: 10px;
             cursor: pointer;
-            color: #ddd;
-            transition: color 0.2s;
+            border-bottom: 1px solid #eee;
         }
 
-        .star.filled {
-            color: #ffd700;
+        .autocomplete-item:hover {
+            background: #f5f5f5;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .rating-slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .rating-value {
+            display: inline-block;
+            font-weight: bold;
+            color: #6b2c2c;
+            font-size: 1.5em;
+            margin-left: 10px;
+        }
+
+        .ratings-display {
+            background: #f8f8f8;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .rating-entry {
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .rating-entry:last-child {
+            border-bottom: none;
+        }
+
+        .rating-user {
+            font-weight: 500;
+            color: #6b2c2c;
+        }
+
+        .rating-score {
+            font-weight: bold;
+            color: #333;
         }
 
         .empty-state {
@@ -206,31 +274,6 @@
         .empty-state-icon {
             font-size: 3em;
             margin-bottom: 10px;
-        }
-
-        .pairing-result {
-            background: #f8f8f8;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-        }
-
-        .pairing-result h3 {
-            color: #6b2c2c;
-            margin-bottom: 10px;
-        }
-
-        .pairing-list {
-            list-style: none;
-        }
-
-        .pairing-list li {
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .pairing-list li:last-child {
-            border-bottom: none;
         }
 
         .quantity-badge {
@@ -269,6 +312,8 @@
             max-width: 500px;
             width: 100%;
             color: #333;
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         .modal-header {
@@ -289,58 +334,159 @@
             cursor: pointer;
             color: #999;
         }
+
+        .user-info {
+            text-align: center;
+            margin-bottom: 20px;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.5);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+
+        #app {
+            display: none;
+        }
+
+        #app.active {
+            display: block;
+        }
+
+        .pairing-result {
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .pairing-result h3 {
+            color: #6b2c2c;
+            margin-bottom: 10px;
+        }
+
+        .pairing-list {
+            list-style: none;
+        }
+
+        .pairing-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .pairing-list li:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🍷 Wine Cellar</h1>
-        <p class="subtitle">Track, rate, and pair your wines</p>
+    <!-- AUTH SCREEN -->
+    <div id="auth" class="auth-container">
+        <div class="card">
+            <h1 style="color: #6b2c2c; margin-bottom: 20px;">🍷 Wine Cellar</h1>
+            
+            <div id="loginForm">
+                <h3 style="margin-bottom: 15px;">Sign In</h3>
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="loginEmail" placeholder="your@email.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword">
+                </div>
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="login()">Sign In</button>
+                <p style="text-align: center; color: #666;">
+                    Don't have an account? <a href="#" onclick="showSignup(); return false;" style="color: #6b2c2c;">Sign up</a>
+                </p>
+            </div>
 
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('cellar')">My Cellar</button>
-            <button class="tab" onclick="switchTab('ratings')">Ratings</button>
-            <button class="tab" onclick="switchTab('pairings')">Pairings</button>
-        </div>
-
-        <!-- CELLAR TAB -->
-        <div id="cellar" class="tab-content active">
-            <div class="card">
-                <button class="btn btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="openAddWineModal()">+ Add Wine</button>
-                <div id="cellarList"></div>
+            <div id="signupForm" style="display: none;">
+                <h3 style="margin-bottom: 15px;">Create Account</h3>
+                <div class="input-group">
+                    <label>Display Name</label>
+                    <input type="text" id="signupName" placeholder="Your name">
+                </div>
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="signupEmail" placeholder="your@email.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="signupPassword" placeholder="At least 6 characters">
+                </div>
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="signup()">Create Account</button>
+                <p style="text-align: center; color: #666;">
+                    Already have an account? <a href="#" onclick="showLogin(); return false;" style="color: #6b2c2c;">Sign in</a>
+                </p>
             </div>
         </div>
+    </div>
 
-        <!-- RATINGS TAB -->
-        <div id="ratings" class="tab-content">
-            <div class="card">
-                <h2 style="color: #6b2c2c; margin-bottom: 15px;">Tasting Notes</h2>
-                <div id="ratingsList"></div>
+    <!-- MAIN APP -->
+    <div id="app">
+        <div class="container">
+            <h1>🍷 Wine Cellar</h1>
+            <p class="subtitle">Shared cellar for wine lovers</p>
+            
+            <div class="user-info">
+                <div id="userDisplay"></div>
+                <button class="logout-btn" onclick="logout()">Sign Out</button>
             </div>
-        </div>
 
-        <!-- PAIRINGS TAB -->
-        <div id="pairings" class="tab-content">
-            <div class="card">
-                <h2 style="color: #6b2c2c; margin-bottom: 15px;">Wine Pairings</h2>
-                
-                <div class="input-group">
-                    <label>I have this wine:</label>
-                    <select id="wineSelect" onchange="suggestFoodPairings()">
-                        <option value="">Select a wine...</option>
-                    </select>
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('cellar')">My Cellar</button>
+                <button class="tab" onclick="switchTab('ratings')">Ratings</button>
+                <button class="tab" onclick="switchTab('pairings')">Pairings</button>
+            </div>
+
+            <!-- CELLAR TAB -->
+            <div id="cellar" class="tab-content active">
+                <div class="card">
+                    <button class="btn btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="openAddWineModal()">+ Add Wine</button>
+                    <div id="cellarList"></div>
                 </div>
+            </div>
 
-                <div id="winePairingResult"></div>
-
-                <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
-
-                <div class="input-group">
-                    <label>I'm making this food:</label>
-                    <input type="text" id="foodInput" placeholder="e.g., grilled salmon, pasta carbonara">
-                    <button class="btn btn-primary" style="margin-top: 10px;" onclick="suggestWinePairings()">Get Wine Suggestions</button>
+            <!-- RATINGS TAB -->
+            <div id="ratings" class="tab-content">
+                <div class="card">
+                    <h2 style="color: #6b2c2c; margin-bottom: 15px;">All Ratings</h2>
+                    <div id="ratingsList"></div>
                 </div>
+            </div>
 
-                <div id="foodPairingResult"></div>
+            <!-- PAIRINGS TAB -->
+            <div id="pairings" class="tab-content">
+                <div class="card">
+                    <h2 style="color: #6b2c2c; margin-bottom: 15px;">Wine Pairings</h2>
+                    
+                    <div class="input-group">
+                        <label>I have this wine:</label>
+                        <select id="wineSelect" onchange="suggestFoodPairings()">
+                            <option value="">Select a wine...</option>
+                        </select>
+                    </div>
+
+                    <div id="winePairingResult"></div>
+
+                    <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+
+                    <div class="input-group">
+                        <label>I'm making this food:</label>
+                        <input type="text" id="foodInput" placeholder="e.g., grilled salmon, pasta carbonara">
+                        <button class="btn btn-primary" style="margin-top: 10px;" onclick="suggestWinePairings()">Get Wine Suggestions</button>
+                    </div>
+
+                    <div id="foodPairingResult"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -349,18 +495,34 @@
     <div id="wineModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modalTitle">Add Wine</h2>
+                <h2>Add Wine</h2>
                 <button class="close-btn" onclick="closeWineModal()">&times;</button>
             </div>
             
             <div class="input-group">
-                <label>Wine Name *</label>
-                <input type="text" id="wineName" placeholder="e.g., Château Margaux">
+                <label>Winery *</label>
+                <div class="autocomplete-container">
+                    <input type="text" id="wineryInput" placeholder="Start typing winery name..." autocomplete="off">
+                    <div id="wineryList" class="autocomplete-list"></div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Region</label>
+                <input type="text" id="regionInput" placeholder="e.g., Bordeaux, Napa Valley">
+            </div>
+
+            <div class="input-group">
+                <label>Variety *</label>
+                <div class="autocomplete-container">
+                    <input type="text" id="varietyInput" placeholder="Start typing variety name..." autocomplete="off">
+                    <div id="varietyList" class="autocomplete-list"></div>
+                </div>
             </div>
 
             <div class="input-group">
                 <label>Type *</label>
-                <select id="wineType">
+                <select id="typeInput">
                     <option value="Red">Red</option>
                     <option value="White">White</option>
                     <option value="Rosé">Rosé</option>
@@ -370,28 +532,18 @@
             </div>
 
             <div class="input-group">
-                <label>Variety</label>
-                <input type="text" id="wineVariety" placeholder="e.g., Cabernet Sauvignon, Chardonnay">
-            </div>
-
-            <div class="input-group">
                 <label>Year</label>
-                <input type="number" id="wineYear" placeholder="e.g., 2018" min="1900" max="2026">
-            </div>
-
-            <div class="input-group">
-                <label>Region</label>
-                <input type="text" id="wineRegion" placeholder="e.g., Bordeaux, Napa Valley">
+                <input type="number" id="yearInput" placeholder="e.g., 2018" min="1900" max="2026">
             </div>
 
             <div class="input-group">
                 <label>Quantity *</label>
-                <input type="number" id="wineQuantity" value="1" min="0">
+                <input type="number" id="quantityInput" value="1" min="0">
             </div>
 
             <div class="input-group">
                 <label>Notes</label>
-                <textarea id="wineNotes" placeholder="Any additional information..."></textarea>
+                <textarea id="notesInput" placeholder="Any additional information..."></textarea>
             </div>
 
             <button class="btn btn-primary" style="width: 100%;" onclick="saveWine()">Save Wine</button>
@@ -409,13 +561,10 @@
             <p id="rateWineName" style="font-weight: bold; color: #6b2c2c; margin-bottom: 20px;"></p>
 
             <div class="input-group">
-                <label>Rating</label>
-                <div class="rating" id="ratingStars">
-                    <span class="star" onclick="setRating(1)">★</span>
-                    <span class="star" onclick="setRating(2)">★</span>
-                    <span class="star" onclick="setRating(3)">★</span>
-                    <span class="star" onclick="setRating(4)">★</span>
-                    <span class="star" onclick="setRating(5)">★</span>
+                <label>Rating (1-100)</label>
+                <div style="display: flex; align-items: center;">
+                    <input type="range" id="ratingSlider" class="rating-slider" min="1" max="100" value="50" oninput="updateRatingValue()">
+                    <span id="ratingValue" class="rating-value">50</span>
                 </div>
             </div>
 
@@ -429,28 +578,191 @@
                 <input type="date" id="ratingDate">
             </div>
 
-            <button class="btn btn-primary" style="width: 100%;" onclick="saveRating()">Save Rating</button>
+            <div id="existingRatings" class="ratings-display" style="display: none;">
+                <h4 style="margin-bottom: 10px;">Other Ratings:</h4>
+                <div id="existingRatingsList"></div>
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="saveRating()">Save Rating</button>
         </div>
     </div>
 
     <script>
-        // Data storage
-        let wines = JSON.parse(localStorage.getItem('wines') || '[]');
-        let ratings = JSON.parse(localStorage.getItem('ratings') || '[]');
-        let currentWineId = null;
-        let currentRating = 0;
-        let currentRatingWineId = null;
+        // Initialize Supabase
+        const SUPABASE_URL = 'https://hgabzawgwtureqsfebsq.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhnYWJ6YXdnd3R1cmVxc2ZlYnNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NTE2NjIsImV4cCI6MjA4NjAyNzY2Mn0.lbV0okGowwAQNWO0k9IY8QtjZsjvjDd47zDaTsu1uZY';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            renderCellar();
-            renderRatings();
-            updateWineSelect();
+        let currentUser = null;
+        let wines = [];
+        let wineries = [];
+        let varieties = [];
+        let ratings = [];
+        let currentWineId = null;
+        let currentRatingWineId = null;
+        let selectedWineryId = null;
+        let selectedVarietyId = null;
+
+        // Auth functions
+        async function checkAuth() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                currentUser = session.user;
+                showApp();
+            } else {
+                showAuth();
+            }
+        }
+
+        function showAuth() {
+            document.getElementById('auth').style.display = 'block';
+            document.getElementById('app').classList.remove('active');
+        }
+
+        function showApp() {
+            document.getElementById('auth').style.display = 'none';
+            document.getElementById('app').classList.add('active');
+            document.getElementById('userDisplay').textContent = `Signed in as ${currentUser.email}`;
+            loadData();
+        }
+
+        function showSignup() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('signupForm').style.display = 'block';
+        }
+
+        function showLogin() {
+            document.getElementById('signupForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+        }
+
+        async function signup() {
+            const name = document.getElementById('signupName').value.trim();
+            const email = document.getElementById('signupEmail').value.trim();
+            const password = document.getElementById('signupPassword').value;
+
+            if (!name || !email || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters');
+                return;
+            }
+
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: { display_name: name }
+                }
+            });
+
+            if (error) {
+                alert('Error: ' + error.message);
+            } else {
+                alert('Account created! Please check your email to confirm.');
+                showLogin();
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                alert('Please enter email and password');
+                return;
+            }
+
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
+
+            if (error) {
+                alert('Error: ' + error.message);
+            } else {
+                currentUser = data.user;
+                showApp();
+            }
+        }
+
+        async function logout() {
+            await supabase.auth.signOut();
+            currentUser = null;
+            showAuth();
+        }
+
+        // Data loading
+        async function loadData() {
+            await Promise.all([
+                loadWineries(),
+                loadVarieties(),
+                loadWines(),
+                loadRatings()
+            ]);
+        }
+
+        async function loadWineries() {
+            const { data, error } = await supabase
+                .from('wineries')
+                .select('*')
+                .order('name');
             
-            // Set default date to today
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('ratingDate').value = today;
-        });
+            if (!error) {
+                wineries = data || [];
+            }
+        }
+
+        async function loadVarieties() {
+            const { data, error } = await supabase
+                .from('varieties')
+                .select('*')
+                .order('name');
+            
+            if (!error) {
+                varieties = data || [];
+            }
+        }
+
+        async function loadWines() {
+            const { data, error } = await supabase
+                .from('wines')
+                .select(`
+                    *,
+                    winery:wineries(id, name, region),
+                    variety:varieties(id, name, type)
+                `)
+                .order('created', { ascending: false });
+            
+            if (!error) {
+                wines = data || [];
+                renderCellar();
+                updateWineSelect();
+            }
+        }
+
+        async function loadRatings() {
+            const { data, error } = await supabase
+                .from('ratings')
+                .select(`
+                    *,
+                    wine:wines(
+                        id,
+                        year,
+                        winery:wineries(name),
+                        variety:varieties(name)
+                    )
+                `)
+                .order('tasting_date', { ascending: false });
+            
+            if (!error) {
+                ratings = data || [];
+                renderRatings();
+            }
+        }
 
         // Tab switching
         function switchTab(tabName) {
@@ -464,14 +776,17 @@
         // Wine CRUD
         function openAddWineModal() {
             currentWineId = null;
-            document.getElementById('modalTitle').textContent = 'Add Wine';
-            document.getElementById('wineName').value = '';
-            document.getElementById('wineType').value = 'Red';
-            document.getElementById('wineVariety').value = '';
-            document.getElementById('wineYear').value = '';
-            document.getElementById('wineRegion').value = '';
-            document.getElementById('wineQuantity').value = '1';
-            document.getElementById('wineNotes').value = '';
+            selectedWineryId = null;
+            selectedVarietyId = null;
+            
+            document.getElementById('wineryInput').value = '';
+            document.getElementById('regionInput').value = '';
+            document.getElementById('varietyInput').value = '';
+            document.getElementById('typeInput').value = 'Red';
+            document.getElementById('yearInput').value = '';
+            document.getElementById('quantityInput').value = '1';
+            document.getElementById('notesInput').value = '';
+            
             document.getElementById('wineModal').classList.add('active');
         }
 
@@ -479,63 +794,177 @@
             document.getElementById('wineModal').classList.remove('active');
         }
 
-        function saveWine() {
-            const name = document.getElementById('wineName').value.trim();
-            const quantity = parseInt(document.getElementById('wineQuantity').value);
-
-            if (!name) {
-                alert('Please enter a wine name');
+        // Autocomplete for winery
+        document.getElementById('wineryInput').addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            const list = document.getElementById('wineryList');
+            
+            if (query.length < 1) {
+                list.classList.remove('active');
                 return;
             }
 
-            const wine = {
-                id: currentWineId || Date.now(),
-                name,
-                type: document.getElementById('wineType').value,
-                variety: document.getElementById('wineVariety').value.trim(),
-                year: document.getElementById('wineYear').value,
-                region: document.getElementById('wineRegion').value.trim(),
-                quantity,
-                notes: document.getElementById('wineNotes').value.trim(),
-                added: currentWineId ? wines.find(w => w.id === currentWineId).added : new Date().toISOString()
-            };
-
-            if (currentWineId) {
-                wines = wines.map(w => w.id === currentWineId ? wine : w);
+            const matches = wineries.filter(w => w.name.toLowerCase().includes(query));
+            
+            if (matches.length === 0) {
+                list.innerHTML = `<div class="autocomplete-item" onclick="createNewWinery('${this.value}')">+ Create "${this.value}"</div>`;
+                list.classList.add('active');
+                selectedWineryId = null;
             } else {
-                wines.push(wine);
+                list.innerHTML = matches.map(w => 
+                    `<div class="autocomplete-item" onclick="selectWinery(${w.id}, '${w.name}', '${w.region || ''}')">${w.name}${w.region ? ' - ' + w.region : ''}</div>`
+                ).join('');
+                list.innerHTML += `<div class="autocomplete-item" onclick="createNewWinery('${this.value}')">+ Create "${this.value}"</div>`;
+                list.classList.add('active');
             }
+        });
 
-            localStorage.setItem('wines', JSON.stringify(wines));
-            renderCellar();
-            updateWineSelect();
-            closeWineModal();
+        function selectWinery(id, name, region) {
+            selectedWineryId = id;
+            document.getElementById('wineryInput').value = name;
+            if (region) document.getElementById('regionInput').value = region;
+            document.getElementById('wineryList').classList.remove('active');
         }
 
-        function drinkWine(id) {
-            const wine = wines.find(w => w.id === id);
-            if (wine && wine.quantity > 0) {
-                wine.quantity--;
-                localStorage.setItem('wines', JSON.stringify(wines));
-                renderCellar();
-                updateWineSelect();
+        function createNewWinery(name) {
+            selectedWineryId = null;
+            document.getElementById('wineryInput').value = name;
+            document.getElementById('wineryList').classList.remove('active');
+        }
+
+        // Autocomplete for variety
+        document.getElementById('varietyInput').addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            const list = document.getElementById('varietyList');
+            
+            if (query.length < 1) {
+                list.classList.remove('active');
+                return;
+            }
+
+            const matches = varieties.filter(v => v.name.toLowerCase().includes(query));
+            
+            if (matches.length === 0) {
+                list.innerHTML = `<div class="autocomplete-item" onclick="createNewVariety('${this.value}')">+ Create "${this.value}"</div>`;
+                list.classList.add('active');
+                selectedVarietyId = null;
+            } else {
+                list.innerHTML = matches.map(v => 
+                    `<div class="autocomplete-item" onclick="selectVariety(${v.id}, '${v.name}', '${v.type}')">${v.name} (${v.type})</div>`
+                ).join('');
+                list.innerHTML += `<div class="autocomplete-item" onclick="createNewVariety('${this.value}')">+ Create "${this.value}"</div>`;
+                list.classList.add('active');
+            }
+        });
+
+        function selectVariety(id, name, type) {
+            selectedVarietyId = id;
+            document.getElementById('varietyInput').value = name;
+            document.getElementById('typeInput').value = type;
+            document.getElementById('varietyList').classList.remove('active');
+        }
+
+        function createNewVariety(name) {
+            selectedVarietyId = null;
+            document.getElementById('varietyInput').value = name;
+            document.getElementById('varietyList').classList.remove('active');
+        }
+
+        async function saveWine() {
+            const wineryName = document.getElementById('wineryInput').value.trim();
+            const varietyName = document.getElementById('varietyInput').value.trim();
+            const region = document.getElementById('regionInput').value.trim();
+            const type = document.getElementById('typeInput').value;
+            const year = document.getElementById('yearInput').value;
+            const quantity = parseInt(document.getElementById('quantityInput').value);
+            const notes = document.getElementById('notesInput').value.trim();
+
+            if (!wineryName || !varietyName) {
+                alert('Please enter winery and variety');
+                return;
+            }
+
+            // Create or get winery
+            let wineryId = selectedWineryId;
+            if (!wineryId) {
+                const { data, error } = await supabase
+                    .from('wineries')
+                    .insert({ name: wineryName, region: region || null, created_by: currentUser.id })
+                    .select()
+                    .single();
                 
-                // Open rating modal
-                currentRatingWineId = id;
-                document.getElementById('rateWineName').textContent = wine.name;
-                setRating(0);
-                document.getElementById('ratingNotes').value = '';
-                document.getElementById('ratingDate').value = new Date().toISOString().split('T')[0];
-                document.getElementById('rateModal').classList.add('active');
+                if (error) {
+                    alert('Error creating winery: ' + error.message);
+                    return;
+                }
+                wineryId = data.id;
+                await loadWineries();
+            }
+
+            // Create or get variety
+            let varietyId = selectedVarietyId;
+            if (!varietyId) {
+                const { data, error } = await supabase
+                    .from('varieties')
+                    .insert({ name: varietyName, type, created_by: currentUser.id })
+                    .select()
+                    .single();
+                
+                if (error) {
+                    alert('Error creating variety: ' + error.message);
+                    return;
+                }
+                varietyId = data.id;
+                await loadVarieties();
+            }
+
+            // Create wine
+            const { error } = await supabase
+                .from('wines')
+                .insert({
+                    winery_id: wineryId,
+                    variety_id: varietyId,
+                    year: year || null,
+                    quantity,
+                    notes: notes || null,
+                    created_by: currentUser.id
+                });
+
+            if (error) {
+                alert('Error saving wine: ' + error.message);
+            } else {
+                await loadWines();
+                closeWineModal();
             }
         }
 
-        function deleteWine(id) {
-            if (confirm('Remove this wine from your cellar?')) {
-                wines = wines.filter(w => w.id !== id);
-                localStorage.setItem('wines', JSON.stringify(wines));
-                renderCellar();
-                updateWineSelect();
+        async function drinkWine(id) {
+            const wine = wines.find(w => w.id === id);
+            if (!wine || wine.quantity <= 0) return;
+
+            const { error } = await supabase
+                .from('wines')
+                .update({ quantity: wine.quantity - 1 })
+                .eq('id', id);
+
+            if (!error) {
+                await loadWines();
+                openRateModal(id);
+            }
+        }
+
+        async function deleteWine(id) {
+            if (!confirm('Remove this wine from the cellar?')) return;
+
+            const { error } = await supabase
+                .from('wines')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                alert('Error: ' + error.message);
+            } else {
+                await loadWines();
             }
         }
 
@@ -543,33 +972,38 @@
             const list = document.getElementById('cellarList');
             
             if (wines.length === 0) {
-                list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🍷</div><p>Your cellar is empty.<br>Add your first wine to get started!</p></div>';
+                list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🍷</div><p>The cellar is empty.<br>Add your first wine!</p></div>';
                 return;
             }
 
-            const activewines = wines.filter(w => w.quantity > 0);
+            const activeWines = wines.filter(w => w.quantity > 0);
             const emptyWines = wines.filter(w => w.quantity === 0);
 
             let html = '';
 
-            if (activewines.length > 0) {
-                activewines.forEach(wine => {
+            if (activeWines.length > 0) {
+                activeWines.forEach(wine => {
+                    const winery = wine.winery?.name || 'Unknown Winery';
+                    const variety = wine.variety?.name || 'Unknown Variety';
+                    const type = wine.variety?.type || '';
+                    
                     html += `
                         <div class="wine-item">
                             <div class="wine-header">
                                 <div>
-                                    <div class="wine-name">${wine.name}</div>
+                                    <div class="wine-name">${winery}</div>
                                     <div class="wine-details">
-                                        ${wine.type}${wine.variety ? ' - ' + wine.variety : ''}${wine.year ? ' (' + wine.year + ')' : ''}
+                                        ${type} - ${variety}${wine.year ? ' (' + wine.year + ')' : ''}
                                     </div>
-                                    ${wine.region ? `<div class="wine-details">📍 ${wine.region}</div>` : ''}
+                                    ${wine.winery?.region ? `<div class="wine-details">📍 ${wine.winery.region}</div>` : ''}
                                 </div>
                                 <span class="quantity-badge">${wine.quantity} ${wine.quantity === 1 ? 'bottle' : 'bottles'}</span>
                             </div>
                             ${wine.notes ? `<div class="wine-details" style="margin-top: 8px;">${wine.notes}</div>` : ''}
                             <div class="wine-actions">
                                 <button class="btn btn-primary btn-small" onclick="drinkWine(${wine.id})">🍷 Drink & Rate</button>
-                                <button class="btn btn-secondary btn-small" onclick="deleteWine(${wine.id})">Remove</button>
+                                <button class="btn btn-secondary btn-small" onclick="viewWineRatings(${wine.id})">View Ratings</button>
+                                ${wine.created_by === currentUser.id ? `<button class="btn btn-secondary btn-small" onclick="deleteWine(${wine.id})">Remove</button>` : ''}
                             </div>
                         </div>
                     `;
@@ -579,19 +1013,17 @@
             if (emptyWines.length > 0) {
                 html += '<div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;"><h3 style="color: #999; font-size: 0.9em; margin-bottom: 10px;">EMPTY BOTTLES</h3>';
                 emptyWines.forEach(wine => {
+                    const winery = wine.winery?.name || 'Unknown';
+                    const variety = wine.variety?.name || 'Unknown';
+                    
                     html += `
                         <div class="wine-item" style="opacity: 0.6;">
                             <div class="wine-header">
                                 <div>
-                                    <div class="wine-name">${wine.name}</div>
-                                    <div class="wine-details">
-                                        ${wine.type}${wine.variety ? ' - ' + wine.variety : ''}${wine.year ? ' (' + wine.year + ')' : ''}
-                                    </div>
+                                    <div class="wine-name">${winery}</div>
+                                    <div class="wine-details">${variety}${wine.year ? ' (' + wine.year + ')' : ''}</div>
                                 </div>
                                 <span class="quantity-badge" style="background: #999;">Empty</span>
-                            </div>
-                            <div class="wine-actions">
-                                <button class="btn btn-secondary btn-small" onclick="deleteWine(${wine.id})">Remove</button>
                             </div>
                         </div>
                     `;
@@ -603,79 +1035,115 @@
         }
 
         // Ratings
-        function setRating(stars) {
-            currentRating = stars;
-            const starElements = document.querySelectorAll('#ratingStars .star');
-            starElements.forEach((star, index) => {
-                if (index < stars) {
-                    star.classList.add('filled');
-                } else {
-                    star.classList.remove('filled');
+        function updateRatingValue() {
+            document.getElementById('ratingValue').textContent = document.getElementById('ratingSlider').value;
+        }
+
+        async function openRateModal(wineId) {
+            currentRatingWineId = wineId;
+            const wine = wines.find(w => w.id === wineId);
+            
+            if (!wine) return;
+
+            const winery = wine.winery?.name || 'Unknown';
+            const variety = wine.variety?.name || 'Unknown';
+            
+            document.getElementById('rateWineName').textContent = `${winery} - ${variety}${wine.year ? ' (' + wine.year + ')' : ''}`;
+            document.getElementById('ratingSlider').value = 50;
+            document.getElementById('ratingValue').textContent = '50';
+            document.getElementById('ratingNotes').value = '';
+            document.getElementById('ratingDate').value = new Date().toISOString().split('T')[0];
+
+            // Load existing ratings for this wine
+            const wineRatings = ratings.filter(r => r.wine_id === wineId);
+            
+            if (wineRatings.length > 0) {
+                let ratingsHtml = '';
+                for (const rating of wineRatings) {
+                    const { data: userData } = await supabase.auth.admin.getUserById(rating.created_by);
+                    const userName = userData?.user?.email?.split('@')[0] || 'Unknown';
+                    
+                    ratingsHtml += `
+                        <div class="rating-entry">
+                            <span class="rating-user">${userName}:</span>
+                            <span class="rating-score">${rating.rating}/100</span>
+                            ${rating.tasting_notes ? `<div style="color: #666; font-size: 0.9em; margin-top: 3px;">${rating.tasting_notes}</div>` : ''}
+                        </div>
+                    `;
                 }
-            });
+                
+                document.getElementById('existingRatingsList').innerHTML = ratingsHtml;
+                document.getElementById('existingRatings').style.display = 'block';
+            } else {
+                document.getElementById('existingRatings').style.display = 'none';
+            }
+
+            document.getElementById('rateModal').classList.add('active');
         }
 
         function closeRateModal() {
             document.getElementById('rateModal').classList.remove('active');
         }
 
-        function saveRating() {
-            if (currentRating === 0) {
-                alert('Please select a rating');
-                return;
-            }
+        async function saveRating() {
+            const rating = parseInt(document.getElementById('ratingSlider').value);
+            const notes = document.getElementById('ratingNotes').value.trim();
+            const date = document.getElementById('ratingDate').value;
 
-            const wine = wines.find(w => w.id === currentRatingWineId);
-            const rating = {
-                id: Date.now(),
-                wineId: currentRatingWineId,
-                wineName: wine.name,
-                wineDetails: `${wine.type}${wine.variety ? ' - ' + wine.variety : ''}${wine.year ? ' (' + wine.year + ')' : ''}`,
-                rating: currentRating,
-                notes: document.getElementById('ratingNotes').value.trim(),
-                date: document.getElementById('ratingDate').value
-            };
+            const { error } = await supabase
+                .from('ratings')
+                .insert({
+                    wine_id: currentRatingWineId,
+                    rating,
+                    tasting_notes: notes || null,
+                    tasting_date: date,
+                    created_by: currentUser.id
+                });
 
-            ratings.push(rating);
-            localStorage.setItem('ratings', JSON.stringify(ratings));
-            renderRatings();
-            closeRateModal();
-        }
-
-        function deleteRating(id) {
-            if (confirm('Delete this rating?')) {
-                ratings = ratings.filter(r => r.id !== id);
-                localStorage.setItem('ratings', JSON.stringify(ratings));
-                renderRatings();
+            if (error) {
+                alert('Error saving rating: ' + error.message);
+            } else {
+                await loadRatings();
+                closeRateModal();
             }
         }
 
-        function renderRatings() {
+        async function viewWineRatings(wineId) {
+            openRateModal(wineId);
+        }
+
+        async function renderRatings() {
             const list = document.getElementById('ratingsList');
             
             if (ratings.length === 0) {
-                list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⭐</div><p>No ratings yet.<br>Drink and rate wines from your cellar!</p></div>';
+                list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⭐</div><p>No ratings yet.<br>Drink and rate wines!</p></div>';
                 return;
             }
 
-            const sortedRatings = [...ratings].sort((a, b) => new Date(b.date) - new Date(a.date));
-
             let html = '';
-            sortedRatings.forEach(rating => {
-                const stars = '★'.repeat(rating.rating) + '☆'.repeat(5 - rating.rating);
+            
+            for (const rating of ratings) {
+                const wine = rating.wine;
+                const winery = wine?.winery?.name || 'Unknown';
+                const variety = wine?.variety?.name || 'Unknown';
+                
+                // Get user info
+                const { data: userData } = await supabase.auth.admin.getUserById(rating.created_by);
+                const userName = userData?.user?.email?.split('@')[0] || 'Unknown';
+                
                 html += `
                     <div class="wine-item">
-                        <div class="wine-name">${rating.wineName}</div>
-                        <div class="wine-details">${rating.wineDetails}</div>
-                        <div style="color: #ffd700; font-size: 1.2em; margin: 8px 0;">${stars}</div>
-                        ${rating.notes ? `<div class="wine-details">${rating.notes}</div>` : ''}
-                        <div class="wine-details" style="margin-top: 5px;">📅 ${new Date(rating.date).toLocaleDateString()}</div>
-                        <div class="wine-actions">
-                            <button class="btn btn-secondary btn-small" onclick="deleteRating(${rating.id})">Delete</button>
+                        <div class="wine-name">${winery} - ${variety}</div>
+                        ${wine?.year ? `<div class="wine-details">${wine.year}</div>` : ''}
+                        <div style="margin: 8px 0;">
+                            <span class="rating-score" style="font-size: 1.3em;">${rating.rating}/100</span>
+                            <span style="color: #666; margin-left: 10px;">by ${userName}</span>
                         </div>
+                        ${rating.tasting_notes ? `<div class="wine-details">${rating.tasting_notes}</div>` : ''}
+                        <div class="wine-details" style="margin-top: 5px;">📅 ${new Date(rating.tasting_date).toLocaleDateString()}</div>
                     </div>
                 `;
-            });
+            }
 
             list.innerHTML = html;
         }
@@ -687,7 +1155,10 @@
             
             select.innerHTML = '<option value="">Select a wine...</option>';
             activeWines.forEach(wine => {
-                select.innerHTML += `<option value="${wine.id}">${wine.name} - ${wine.type}</option>`;
+                const winery = wine.winery?.name || 'Unknown';
+                const variety = wine.variety?.name || 'Unknown';
+                const type = wine.variety?.type || '';
+                select.innerHTML += `<option value="${type}">${winery} - ${variety} (${type})</option>`;
             });
         }
 
@@ -715,20 +1186,19 @@
         };
 
         function suggestFoodPairings() {
-            const wineId = parseInt(document.getElementById('wineSelect').value);
+            const wineType = document.getElementById('wineSelect').value;
             const resultDiv = document.getElementById('winePairingResult');
             
-            if (!wineId) {
+            if (!wineType) {
                 resultDiv.innerHTML = '';
                 return;
             }
 
-            const wine = wines.find(w => w.id === wineId);
-            const pairings = pairingDatabase[wine.type];
+            const pairings = pairingDatabase[wineType];
 
             resultDiv.innerHTML = `
                 <div class="pairing-result">
-                    <h3>Great pairings for ${wine.name}:</h3>
+                    <h3>Great pairings for this wine:</h3>
                     <ul class="pairing-list">
                         ${pairings.foods.map(food => `<li>🍽️ ${food}</li>`).join('')}
                     </ul>
@@ -747,7 +1217,6 @@
 
             let suggestions = [];
             
-            // Check each wine type's food pairings
             for (const [wineType, data] of Object.entries(pairingDatabase)) {
                 if (data.foods.some(f => f.toLowerCase().includes(food) || food.includes(f.toLowerCase()))) {
                     suggestions.push({
@@ -757,7 +1226,6 @@
                 }
             }
 
-            // If no specific match, give general suggestions based on keywords
             if (suggestions.length === 0) {
                 if (food.includes('meat') || food.includes('beef') || food.includes('steak')) {
                     suggestions.push({ type: 'Red', wines: pairingDatabase['Red'].wines });
@@ -766,7 +1234,6 @@
                 } else if (food.includes('dessert') || food.includes('chocolate') || food.includes('sweet')) {
                     suggestions.push({ type: 'Dessert', wines: pairingDatabase['Dessert'].wines });
                 } else {
-                    // Default suggestion
                     suggestions.push(
                         { type: 'White', wines: pairingDatabase['White'].wines },
                         { type: 'Rosé', wines: pairingDatabase['Rosé'].wines }
@@ -790,10 +1257,18 @@
             resultDiv.innerHTML = html;
         }
 
-        // Service Worker Registration
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
-        }
+        // Initialize
+        checkAuth();
+        
+        supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN') {
+                currentUser = session.user;
+                showApp();
+            } else if (event === 'SIGNED_OUT') {
+                currentUser = null;
+                showAuth();
+            }
+        });
     </script>
 </body>
 </html>
