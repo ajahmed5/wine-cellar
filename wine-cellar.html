@@ -637,8 +637,19 @@
         }
 
         function showSignup() {
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('signupForm').style.display = 'block';
+            try {
+                alert('showSignup called');
+                const loginForm = document.getElementById('loginForm');
+                const signupForm = document.getElementById('signupForm');
+                alert('Found forms: loginForm=' + !!loginForm + ', signupForm=' + !!signupForm);
+                
+                if (loginForm) loginForm.style.display = 'none';
+                if (signupForm) signupForm.style.display = 'block';
+                
+                alert('Forms toggled');
+            } catch (error) {
+                alert('Error in showSignup: ' + error.message);
+            }
         }
 
         function showLogin() {
