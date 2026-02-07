@@ -586,6 +586,18 @@
     </div>
 
     <script>
+        // Define UI functions FIRST before anything else
+        window.showSignup = function() {
+            alert('showSignup called!');
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('signupForm').style.display = 'block';
+        };
+
+        window.showLogin = function() {
+            document.getElementById('signupForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+        };
+
         // Check if Supabase loaded
         if (!window.supabase) {
             alert('Error: Unable to load Supabase library. Please check your internet connection and refresh.');
@@ -615,11 +627,21 @@
 
         // Auth functions
         async function checkAuth() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                currentUser = session.user;
-                showApp();
-            } else {
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                if (error) {
+                    console.error('getSession error:', error);
+                    showAuth();
+                    return;
+                }
+                if (session) {
+                    currentUser = session.user;
+                    showApp();
+                } else {
+                    showAuth();
+                }
+            } catch (error) {
+                alert('checkAuth error: ' + error.message);
                 showAuth();
             }
         }
@@ -635,32 +657,6 @@
             document.getElementById('userDisplay').textContent = `Signed in as ${currentUser.email}`;
             loadData();
         }
-
-        function showSignup() {
-            try {
-                alert('showSignup called');
-                const loginForm = document.getElementById('loginForm');
-                const signupForm = document.getElementById('signupForm');
-                alert('Found forms: loginForm=' + !!loginForm + ', signupForm=' + !!signupForm);
-                
-                if (loginForm) loginForm.style.display = 'none';
-                if (signupForm) signupForm.style.display = 'block';
-                
-                alert('Forms toggled');
-            } catch (error) {
-                alert('Error in showSignup: ' + error.message);
-            }
-        }
-        
-        // Make sure it's on window object
-        window.showSignup = showSignup;
-
-        function showLogin() {
-            document.getElementById('signupForm').style.display = 'none';
-            document.getElementById('loginForm').style.display = 'block';
-        }
-        
-        window.showLogin = showLogin;
 
         async function signup() {
             const name = document.getElementById('signupName').value.trim();
