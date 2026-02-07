@@ -589,7 +589,8 @@
         // Initialize Supabase
         const SUPABASE_URL = 'https://hgabzawgwtureqsfebsq.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhnYWJ6YXdnd3R1cmVxc2ZlYnNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NTE2NjIsImV4cCI6MjA4NjAyNzY2Mn0.lbV0okGowwAQNWO0k9IY8QtjZsjvjDd47zDaTsu1uZY';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const { createClient } = window.supabase;
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let currentUser = null;
         let wines = [];
@@ -1058,8 +1059,7 @@
             if (wineRatings.length > 0) {
                 let ratingsHtml = '';
                 for (const rating of wineRatings) {
-                    const { data: userData } = await supabase.auth.admin.getUserById(rating.created_by);
-                    const userName = userData?.user?.email?.split('@')[0] || 'Unknown';
+                    const userName = rating.user_name || 'Unknown user';
                     
                     ratingsHtml += `
                         <div class="rating-entry">
@@ -1088,6 +1088,9 @@
             const notes = document.getElementById('ratingNotes').value.trim();
             const date = document.getElementById('ratingDate').value;
 
+            // Get user's display name from metadata or use email
+            const displayName = currentUser.user_metadata?.display_name || currentUser.email.split('@')[0];
+
             const { error } = await supabase
                 .from('ratings')
                 .insert({
@@ -1095,7 +1098,8 @@
                     rating,
                     tasting_notes: notes || null,
                     tasting_date: date,
-                    created_by: currentUser.id
+                    created_by: currentUser.id,
+                    user_name: displayName
                 });
 
             if (error) {
@@ -1125,9 +1129,8 @@
                 const winery = wine?.winery?.name || 'Unknown';
                 const variety = wine?.variety?.name || 'Unknown';
                 
-                // Get user info
-                const { data: userData } = await supabase.auth.admin.getUserById(rating.created_by);
-                const userName = userData?.user?.email?.split('@')[0] || 'Unknown';
+                // Display the user_name from the rating
+                const userName = rating.user_name || 'Unknown user';
                 
                 html += `
                     <div class="wine-item">
